@@ -1,0 +1,134 @@
+run:
+  concurrency: 8
+  tests: true
+  skip-files:
+    - internal/bindata.go
+    - docs/*
+  allow-parallel-runners: true
+  modules-download-mode: readonly
+
+linters:
+  # please, do not use `enable-all`: it's deprecated and will be removed soon.
+  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
+  disable-all: true
+  enable:
+    # https://golangci-lint.run/usage/linters/#enabled-by-default-linters
+    # ENABLED BY DEFAULT START
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    # ENABLED BY DEFAULT END
+    # BUG
+    # https://github.com/golangci/golangci-lint/issues/2649
+    #    - bodyclose
+    #    - contextcheck
+    #    - interfacer
+    #    - nilerr
+    #    - noctx
+    #    - rowserrcheck
+    #    - sqlclosecheck
+    #    - structcheck
+    #    - tparallel
+    #    - wastedassign
+    # BUG END
+    # DEPRECATED START
+    #    - golint
+    #    - ifshort
+    #    - maligned
+    #    - exhaustivestruct
+    #    - scopelint
+    #    - deadcode
+    #    - varcheck
+    # DEPRECATED END
+    # PANICS START
+    #    - exhaustruct
+    # PANICS END
+    # TODO START
+    #    - cyclop
+    #    - dupl
+    #    - funlen
+    #    - gocognit
+    #    - goconst
+    #    - gocritic
+    #    - gocyclo
+    #    - godox
+    #    - maintidx
+    #    - nestif
+    #    - paralleltest
+    #    - varnamelen
+    #    - wrapcheck
+    # TODO END
+    - asasalint
+    - asciicheck
+    - bidichk
+    - containedctx
+    - decorder
+    - depguard
+    #    - dogsled
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - execinquery
+    - exhaustive
+    - exportloopref
+    #    - forbidigo
+    - forcetypeassert
+    #    - gci
+    #    - gochecknoglobals
+    #    - gochecknoinits
+    - godot
+    #    - goerr113
+    #    - gofmt
+    #    - gofumpt
+    - goheader
+    #    - goimports
+    #    - gomnd
+    #    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - grouper
+    - importas
+    - ireturn
+    #    - lll
+    - makezero
+    - misspell
+    - nakedret
+    - nilnil
+    - nlreturn
+    #    - nolintlint
+    #    - nonamedreturns
+    #    - nosnakecase
+    - nosprintfhostport
+    #    - prealloc
+    - predeclared
+    - promlinter
+    - revive
+    - stylecheck
+    - tagliatelle
+    - tenv
+    #    - testpackage
+    - thelper
+    - unconvert
+    #    - unparam
+    - whitespace
+    - wsl
+
+linters-settings:
+  wsl:
+    allow-separated-leading-comment: true
+    allow-trailing-comment: true
+    allow-assign-and-anything: true
+  staticcheck:
+    checks: [ "all", "-SA5008" ]
+  goconst:
+    min-occurrences: 5
+  varnamelen:
+    max-distance: 15
+  funlen:
+    lines: 100
