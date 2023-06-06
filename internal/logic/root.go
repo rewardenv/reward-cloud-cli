@@ -2,8 +2,9 @@ package logic
 
 import (
 	"fmt"
-	"github.com/rewardenv/reward-cloud-cli/internal/config"
 	"strings"
+
+	"github.com/rewardenv/reward-cloud-cli/internal/config"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -16,7 +17,7 @@ type RootClient struct {
 }
 
 func NewRootClient(c *config.App) *RootClient {
-	return &RootClient{new(c)}
+	return &RootClient{New(c)}
 }
 
 // RunCmdRoot is the default command. If no additional args passed print the help.

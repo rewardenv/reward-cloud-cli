@@ -11,7 +11,7 @@ type RcContext struct {
 }
 
 func (c *RcContext) OrganizationID() int32 {
-	id, err := strconv.Atoi(c.Organization)
+	id, err := strconv.ParseUint(c.Organization, 10, 32)
 	if err != nil {
 		return -1
 	}
@@ -20,7 +20,7 @@ func (c *RcContext) OrganizationID() int32 {
 }
 
 func (c *RcContext) TeamID() int32 {
-	id, err := strconv.Atoi(c.Team)
+	id, err := strconv.ParseUint(c.Team, 10, 32)
 	if err != nil {
 		return -1
 	}
@@ -29,7 +29,7 @@ func (c *RcContext) TeamID() int32 {
 }
 
 func (c *RcContext) ProjectID() int32 {
-	id, err := strconv.Atoi(c.Project)
+	id, err := strconv.ParseUint(c.Project, 10, 32)
 	if err != nil {
 		return -1
 	}
@@ -38,7 +38,7 @@ func (c *RcContext) ProjectID() int32 {
 }
 
 func (c *RcContext) EnvironmentID() int32 {
-	id, err := strconv.Atoi(c.Environment)
+	id, err := strconv.ParseUint(c.Environment, 10, 32)
 	if err != nil {
 		return -1
 	}

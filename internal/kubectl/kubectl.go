@@ -3,11 +3,13 @@ package kubectl
 import (
 	"container/list"
 	"fmt"
+	"strings"
+
+	"github.com/pkg/errors"
 	"github.com/rewardenv/reward-cloud-cli/internal/shell"
 	log "github.com/sirupsen/logrus"
 	kube "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/yaml"
-	"strings"
 )
 
 type Client struct {
@@ -26,7 +28,7 @@ func NewClient(s shell.Shell, tmpFiles *list.List) *Client {
 func (c *Client) RunCommand(args []string, opts ...shell.Opt) (output []byte, err error) {
 	log.Debugf("Running command: kubectl %s", strings.Join(args, " "))
 
-	return c.ExecuteWithOptions("kubectl", args, opts...)
+	return c.ExecuteWithOptions("kubectl", args, opts...) //nolint:wrapcheck
 }
 
 type Options struct {
@@ -88,7 +90,7 @@ func (c *Client) NewKubeConfig(opts *Options) ([]byte, error) {
 
 	kubeconfigdata, err := yaml.Marshal(conf)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "marshalling kubeconfig")
 	}
 
 	return kubeconfigdata, nil

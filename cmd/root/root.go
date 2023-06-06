@@ -2,12 +2,14 @@ package root
 
 import (
 	"fmt"
+	"path/filepath"
+
 	"github.com/pkg/errors"
 	"github.com/rewardenv/reward-cloud-cli/cmd/cache"
 	"github.com/rewardenv/reward-cloud-cli/cmd/context"
 	"github.com/rewardenv/reward-cloud-cli/cmd/env"
-	"github.com/rewardenv/reward-cloud-cli/cmd/portForward"
-	"path/filepath"
+	"github.com/rewardenv/reward-cloud-cli/cmd/info"
+	"github.com/rewardenv/reward-cloud-cli/cmd/portforward"
 
 	"github.com/rewardenv/reward/pkg/util"
 	"github.com/spf13/cobra"
@@ -65,8 +67,9 @@ func NewCmdRoot(conf *config.App) *cmdpkg.Command {
 		context.NewCmdContext(conf),
 		login.NewCmdLogin(conf),
 		shell.NewCmdShell(conf),
-		portForward.NewCmdPortForward(conf),
+		portforward.NewCmdPortForward(conf),
 		env.NewCmdEnv(conf),
+		info.NewCmdInfo(conf),
 	)
 
 	return cmd

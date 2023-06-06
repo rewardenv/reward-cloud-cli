@@ -3,14 +3,15 @@ package logic
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/david_mbuvi/go_asterisks"
-	"os"
-	"strconv"
-	"strings"
 )
 
 type options struct {
@@ -125,9 +126,9 @@ type tableWriterOptions struct {
 	WidthMax int
 }
 
-type tableWriterOption func(*tableWriterOptions)
+type TableWriterOption func(*tableWriterOptions)
 
-func WithTableWidthMax(width int) tableWriterOption {
+func WithTableWidthMax(width int) TableWriterOption {
 	return func(o *tableWriterOptions) {
 		o.WidthMax = width
 	}
@@ -137,7 +138,7 @@ type TableWriter struct {
 	table.Writer
 }
 
-func NewTableWriter(opts ...tableWriterOption) TableWriter {
+func NewTableWriter(opts ...TableWriterOption) TableWriter {
 	o := tableWriterOptions{
 		WidthMax: 24,
 	}
@@ -148,9 +149,8 @@ func NewTableWriter(opts ...tableWriterOption) TableWriter {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.SetStyle(table.StyleLight)
-	t.Style().Options.SeparateRows = true
-	t.SetAllowedRowLength(120)
+	t.SetStyle(table.StyleDefault)
+	t.SetAllowedRowLength(180)
 
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{
@@ -194,5 +194,6 @@ func (t TableWriter) Render() {
 
 func GetIDFromPath(path string) string {
 	pathParts := strings.Split(path, "/")
+
 	return pathParts[len(pathParts)-1]
 }

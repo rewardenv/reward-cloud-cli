@@ -22,7 +22,7 @@ func NewCmdCache(app *config.App) *cmdpkg.Command {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			},
 			RunE: func(cmd *cobra.Command, args []string) error {
-				return cmd.Help()
+				return cmd.Help() //nolint:wrapcheck
 			},
 		},
 		App: app,

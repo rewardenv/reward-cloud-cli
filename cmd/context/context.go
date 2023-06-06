@@ -20,7 +20,7 @@ func NewCmdContext(app *config.App) *cmdpkg.Command {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			},
 			RunE: func(cmd *cobra.Command, args []string) error {
-				return cmd.Help()
+				return cmd.Help() //nolint:wrapcheck
 			},
 		},
 		App: app,
@@ -31,6 +31,7 @@ func NewCmdContext(app *config.App) *cmdpkg.Command {
 		NewCmdContextCreate(app),
 		NewCmdContextDelete(app),
 		NewCmdContextSelect(app),
+		NewCmdContextCheck(app),
 	)
 
 	return cmd
@@ -134,6 +135,32 @@ func NewCmdContextSelect(app *config.App) *cmdpkg.Command {
 			},
 			RunE: func(cmd *cobra.Command, args []string) error {
 				err := logic.NewContextClient(app).RunCmdContextSelect(cmd, args)
+				if err != nil {
+					return errors.Wrap(err, "select a specified context")
+				}
+
+				return nil
+			},
+		},
+		App: app,
+	}
+
+	return cmd
+}
+
+func NewCmdContextCheck(app *config.App) *cmdpkg.Command {
+	cmd := &cmdpkg.Command{
+		Command: &cobra.Command{
+			Use:   "check",
+			Short: "check context",
+			Long:  `check the current context`,
+			ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) (
+				[]string, cobra.ShellCompDirective,
+			) {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			},
+			RunE: func(cmd *cobra.Command, args []string) error {
+				err := logic.NewContextClient(app).RunCmdContextCheck(cmd, args)
 				if err != nil {
 					return errors.Wrap(err, "select a specified context")
 				}

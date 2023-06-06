@@ -4,17 +4,18 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/rewardenv/reward/pkg/util"
+	"gopkg.in/yaml.v3"
+
 	"github.com/hashicorp/go-version"
 	"github.com/rewardenv/reward-cloud-sdk-go/rewardcloud"
-	"github.com/rewardenv/reward/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
@@ -48,9 +49,11 @@ func New(name, parentAppName, ver string) *App {
 func (a *App) Cleanup() error {
 	var err error
 	for e := a.TmpFiles.Front(); e != nil; e = e.Next() {
-		err2 := os.Remove(e.Value.(string))
-		if err2 != nil {
-			err = err2
+		if val, ok := e.Value.(string); ok {
+			err2 := os.Remove(val)
+			if err2 != nil {
+				err = err2
+			}
 		}
 	}
 
@@ -58,9 +61,42 @@ func (a *App) Cleanup() error {
 }
 
 func (a *App) Init() *App {
+	// Configure defaults.
+	a.SetDefault("silence_errors", true)
+
+	// Reward
+	a.SetDefault(fmt.Sprintf("%s_%s_parent_app_name", a.parentAppName, a.appName), a.parentAppName)
+
+	// ~/.reward
+	a.SetDefault(fmt.Sprintf("%s_home_dir", a.ParentAppName()),
+		filepath.Join(util.HomeDir(), fmt.Sprintf(".%s", a.ParentAppName())))
+
+	// ~/.reward/plugins.conf.d
+	a.SetDefault(fmt.Sprintf("%s_plugins_config_dir", a.ParentAppName()),
+		filepath.Join(a.ParentAppHomeDir(), "plugins.conf.d"))
+
+	// ~/.reward/plugins.conf.d/cloud
+	a.SetDefault(fmt.Sprintf("%s_home_dir", a.ConfigPrefix()),
+		filepath.Join(a.ParentAppPluginsConfigDir(), a.AppName()))
+
+	// ~/.reward/plugins.conf.d/cloud/.cache
+	a.SetDefault(fmt.Sprintf("%s_cache_dir", a.ConfigPrefix()),
+		filepath.Join(a.AppHomeDir(), ".cache"))
+
+	// ~/.reward/plugins.conf.d/cloud/.cache/token
+	a.SetDefault(fmt.Sprintf("%s_token_file", a.ConfigPrefix()),
+		filepath.Join(a.CacheDir(), "token"))
+
+	// ~/.reward/plugins.conf.d/cloud/config.yaml
+	a.SetDefault(fmt.Sprintf("%s_config_file", a.ConfigPrefix()),
+		filepath.Join(a.AppHomeDir(), "config.yml"))
+
+	// Cloud API App
+	a.SetDefault(fmt.Sprintf("%s_endpoint", a.ConfigPrefix()), "rewardcloud.itg.cloud")
+
 	a.AddConfigPath(".")
 
-	cfg := a.GetString(fmt.Sprintf("%s_%s_config_file", a.parentAppName, a.appName))
+	cfg := a.ConfigFilePath()
 	if cfg != "" {
 		a.AddConfigPath(filepath.Dir(cfg))
 		a.SetConfigName(filepath.Base(cfg))
@@ -81,30 +117,11 @@ func (a *App) Init() *App {
 		log.Debugf("%v", err)
 	}
 
-	// Configure defaults.
-	a.SetDefault("silence_errors", true)
-	a.SetDefault(fmt.Sprintf("%s_%s_parent_app_name", a.parentAppName, a.appName), a.parentAppName)
-	a.SetDefault(fmt.Sprintf("%s_parent_app_home_dir", a.ConfigPrefix()),
-		filepath.Join(util.HomeDir(), fmt.Sprintf(".%s", a.ParentAppName())))
-	a.SetDefault(fmt.Sprintf("%s_home_dir", a.ParentAppName()),
-		filepath.Join(util.HomeDir(), fmt.Sprintf(".%s", a.ParentAppName())))
-	a.SetDefault(fmt.Sprintf("%s_plugins_config_dir", a.ParentAppName()),
-		filepath.Join(a.ParentAppHomeDir(), "plugins.conf.d"))
-	a.SetDefault(fmt.Sprintf("%s_home_dir", a.ConfigPrefix()),
-		filepath.Join(a.PluginsConfigDir(), a.AppName()))
-	a.SetDefault(fmt.Sprintf("%s_cache_dir", a.ConfigPrefix()),
-		filepath.Join(a.PluginsConfigDir(), a.AppName(), ".cache"))
-	a.SetDefault(fmt.Sprintf("%s_token_file", a.ConfigPrefix()),
-		filepath.Join(a.CacheDir(), "token"))
-
-	// Cloud API App
-	a.SetDefault(fmt.Sprintf("%s_endpoint", a.ConfigPrefix()), "dev.rewardcloud.itg.cloud")
-
 	a.SetLogging()
 
 	endpoint := rewardcloud.ServerConfigurations{
 		{
-			URL:         "https://" + a.GetString(fmt.Sprintf("%s_endpoint", a.ConfigPrefix())),
+			URL:         a.Endpoint(),
 			Description: "",
 		},
 	}
@@ -182,16 +199,15 @@ func (a *App) AppVersion() string {
 	return a.GetString(fmt.Sprintf("%s_version", a.ConfigPrefix()))
 }
 
-// AppHomeDir returns the application's home directory.
-func (a *App) AppHomeDir() string {
-	return a.GetString(fmt.Sprintf("%s_home_dir", a.ConfigPrefix()))
-}
-
 func (a *App) ParentAppHomeDir() string {
 	return a.GetString(fmt.Sprintf("%s_home_dir", a.ParentAppName()))
 }
 
-func (a *App) PluginsConfigDir() string {
+func (a *App) AppHomeDir() string {
+	return a.GetString(fmt.Sprintf("%s_home_dir", a.ConfigPrefix()))
+}
+
+func (a *App) ParentAppPluginsConfigDir() string {
 	return a.GetString(fmt.Sprintf("%s_plugins_config_dir", a.ParentAppName()))
 }
 
@@ -219,6 +235,30 @@ func (a *App) ConfigPrefix() string {
 
 func (a *App) ConfigFilePath() string {
 	return a.GetString(fmt.Sprintf("%s_config_file", a.ConfigPrefix()))
+}
+
+func (a *App) Endpoint() string {
+	if a.GetString("endpoint") != "" {
+		return "https://" + a.GetString("endpoint")
+	}
+
+	return "https://" + a.GetString(fmt.Sprintf("%s_endpoint", a.ConfigPrefix()))
+}
+
+func (a *App) ID() string {
+	if a.GetString("id") != "" {
+		return a.GetString("id")
+	}
+
+	return a.GetString(fmt.Sprintf("%s_id", a.ConfigPrefix()))
+}
+
+func (a *App) Password() string {
+	if a.GetString("password") != "" {
+		return a.GetString("password")
+	}
+
+	return a.GetString(fmt.Sprintf("%s_password", a.ConfigPrefix()))
 }
 
 func (a *App) ReadConfig() (*Config, error) {

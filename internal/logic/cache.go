@@ -1,9 +1,10 @@
 package logic
 
 import (
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/rewardenv/reward-cloud-cli/internal/config"
-	"os"
 
 	"github.com/rewardenv/reward/pkg/util"
 	log "github.com/sirupsen/logrus"
@@ -16,7 +17,7 @@ type CacheClient struct {
 
 func NewCacheClient(c *config.App) *CacheClient {
 	return &CacheClient{
-		new(c),
+		New(c),
 	}
 }
 

@@ -4,26 +4,31 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/rewardenv/reward-cloud-cli/internal/config"
 	"github.com/rewardenv/reward-cloud-cli/internal/kubectl"
 	"github.com/rewardenv/reward-cloud-cli/internal/shell"
 	"github.com/rewardenv/reward-cloud-sdk-go/rewardcloud"
 	"github.com/rewardenv/reward/pkg/util"
-	"os"
-	"path/filepath"
-	"strconv"
 )
 
 type Client struct {
 	*config.App
 	Kubectl *kubectl.Client
+	Shell   shell.Shell
 }
 
-func new(c *config.App) *Client {
+func New(c *config.App) *Client {
 	return &Client{
 		c,
 		kubectl.NewClient(shell.NewLocalShellWithOpts(), c.TmpFiles),
+		shell.NewLocalShellWithOpts(),
 	}
 }
 
@@ -76,7 +81,8 @@ func (c *Client) getClusterByID(ctx context.Context, id int32) (*rewardcloud.Clu
 }
 
 func (c *Client) getOrganizationByID(ctx context.Context, id string) (name string, err error) {
-	org, _, err := c.RewardCloud.OrganisationApi.ApiOrganisationsIdGet(ctx, id).Execute()
+	org, resp, err := c.RewardCloud.OrganisationApi.ApiOrganisationsIdGet(ctx, id).Execute()
+	_ = resp
 	if err != nil {
 		return "", errors.Wrap(err, "getting organization")
 	}
@@ -93,7 +99,7 @@ func (c *Client) getTeamByID(ctx context.Context, id string) (name string, err e
 	return team.GetName(), nil
 }
 
-func (c *Client) getProject(ctx context.Context) (*rewardcloud.ProjectProjectGet, error) {
+func (c *Client) getProject(ctx context.Context) (*rewardcloud.ProjectProjectOutput, error) {
 	ctx, err := c.prepareContext(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "preparing context")
@@ -116,7 +122,7 @@ func (c *Client) getProjectNameByID(ctx context.Context, id string) (name string
 	return project.GetName(), nil
 }
 
-func (c *Client) getProjectByID(ctx context.Context, id string) (get *rewardcloud.ProjectProjectGet, err error) {
+func (c *Client) getProjectByID(ctx context.Context, id string) (get *rewardcloud.ProjectProjectOutput, err error) {
 	project, _, err := c.RewardCloud.ProjectApi.ApiProjectsIdGet(ctx, id).Execute()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting project")
@@ -125,7 +131,7 @@ func (c *Client) getProjectByID(ctx context.Context, id string) (get *rewardclou
 	return project, nil
 }
 
-func (c *Client) getEnvironment(ctx context.Context) (*rewardcloud.EnvironmentEnvironmentGet, error) {
+func (c *Client) getEnvironment(ctx context.Context) (*rewardcloud.EnvironmentEnvironmentOutput, error) {
 	ctx, err := c.prepareContext(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "preparing context")
@@ -148,7 +154,7 @@ func (c *Client) getEnvironmentNameByID(ctx context.Context, id string) (name st
 	return environment.GetName(), nil
 }
 
-func (c *Client) getEnvironmentByID(ctx context.Context, id string) (*rewardcloud.EnvironmentEnvironmentGet, error) {
+func (c *Client) getEnvironmentByID(ctx context.Context, id string) (*rewardcloud.EnvironmentEnvironmentOutput, error) {
 	environment, _, err := c.RewardCloud.EnvironmentApi.ApiEnvironmentsIdGet(ctx, id).Execute()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting environment")
@@ -233,4 +239,27 @@ func (c *Client) prepareContext(ctx context.Context) (context.Context, error) {
 	}
 
 	return context.WithValue(ctx, config.ContextKey{}, rcContext), nil
+}
+
+func (c *Client) CheckKubectl() error {
+	_, err := exec.LookPath("kubectl")
+	if err != nil {
+		return errors.Errorf("%s: please install kubectl", err)
+	}
+
+	out, err := c.Shell.ExecuteWithOptions(
+		"kubectl",
+		[]string{"oidc-login", "--version"},
+		shell.WithSuppressOutput(true),
+		shell.WithCatchOutput(true),
+	)
+	if err != nil {
+		return errors.Errorf("%s: cannot run kubectl oidc-login: %s", err, string(out))
+	}
+
+	if !strings.Contains(string(out), "kubelogin version") {
+		return errors.New("cannot determine kubelogin version: please install kubelogin")
+	}
+
+	return nil
 }

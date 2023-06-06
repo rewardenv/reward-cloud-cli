@@ -109,7 +109,6 @@ func (suite *ShellTestSuite) TestLocalShell_Execute() {
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			rescueStdout := os.Stdout
-			//nolint:varnamelen
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
@@ -268,7 +267,6 @@ func (suite *ShellTestSuite) TestLocalShell_ExecuteWithOptions() {
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			rescueStdout := os.Stdout
-			//nolint:varnamelen
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 			c := &LocalShell{

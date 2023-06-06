@@ -16,11 +16,12 @@ limitations under the License.
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 	"syscall"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/rewardenv/reward-cloud-cli/cmd/root"
 	"github.com/rewardenv/reward-cloud-cli/internal/config"
@@ -39,7 +40,6 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
-		syscall.SIGKILL,
 	)
 
 	app := config.New(APPNAME, PARENTAPPNAME, VERSION)

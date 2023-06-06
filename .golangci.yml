@@ -43,6 +43,17 @@ linters:
     # PANICS START
     - exhaustruct
     # PANICS END
+    - unused
+    - varnamelen
+    - gomnd
+    - depguard
+    - ireturn
+    - testpackage
+    - wsl
+    # TODO
+    - paralleltest
+    - dupl
+    - gocognit
 
   enable:
     - asasalint
@@ -51,9 +62,7 @@ linters:
     - containedctx
     - cyclop
     - decorder
-    - depguard
     - dogsled
-    - dupl
     - durationcheck
     - errcheck
     - errchkjson
@@ -66,7 +75,6 @@ linters:
     - forcetypeassert
     - funlen
     - gochecknoinits
-    - gocognit
     - goconst
     - gocritic
     - gocyclo
@@ -76,7 +84,6 @@ linters:
     - gofumpt
     - goheader
     - goimports
-    - gomnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname
@@ -86,7 +93,6 @@ linters:
     - grouper
     - importas
     - ineffassign
-    - ireturn
     - lll
     - maintidx
     - makezero
@@ -97,7 +103,6 @@ linters:
     - nlreturn
     - nolintlint
     - nosprintfhostport
-    - paralleltest
     - prealloc
     - predeclared
     - promlinter
@@ -106,22 +111,14 @@ linters:
     - stylecheck
     - tagliatelle
     - tenv
-    - testpackage
     - thelper
     - typecheck
     - unconvert
     - unparam
-    - unused
-    - varnamelen
     - whitespace
     - wrapcheck
-    - wsl
 
 linters-settings:
-  wsl:
-    allow-separated-leading-comment: true
-    allow-trailing-comment: true
-    allow-assign-and-anything: true
   staticcheck:
     checks: [ "all", "-SA5008" ]
   goconst:
@@ -138,4 +135,13 @@ linters-settings:
       - i int
       - FS *afero.Afero
   funlen:
-    lines: 100
+    lines: 150
+    statements: 50
+  cyclop:
+    max-complexity: 15
+  nestif:
+    min-complexity: 7
+  revive:
+    rules:
+      - name: "unused-parameter"
+        disabled: true

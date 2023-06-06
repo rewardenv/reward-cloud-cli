@@ -3,6 +3,10 @@ package logic
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/rewardenv/reward-cloud-cli/internal/config"
@@ -10,8 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"reflect"
-	"strconv"
 )
 
 type ContextClient struct {
@@ -20,7 +22,7 @@ type ContextClient struct {
 
 func NewContextClient(c *config.App) *ContextClient {
 	return &ContextClient{
-		new(c),
+		New(c),
 	}
 }
 
@@ -45,38 +47,6 @@ func (c *ContextClient) RunCmdContextList(cmd *cobra.Command, args []string) err
 	return c.listContexts(conf)
 }
 
-//func (c *Client) RunCmdContextConfigure(cmd *cobra.Command, args []string) error {
-//	ctx, err := c.CheckTokenAndLogin(context.Background())
-//	if err != nil {
-//		return errors.Wrap(err, "checking token")
-//	}
-//
-//	conf, err := c.ReadConfig()
-//	if err != nil {
-//		return errors.Wrap(err, "reading config")
-//	}
-//	oldConf := *conf
-//
-//	log.Info("Creating a new context...")
-//
-//	c.configureContexts(ctx, conf)
-//
-//	c.overWriteContext(cloudContext, conf)
-//
-//	if reflect.DeepEqual(oldConf, *conf) {
-//		log.Info("No changes in configuration. Exiting...")
-//
-//		return nil
-//	}
-//
-//	err = c.saveContext(conf)
-//	if err != nil {
-//		return errors.Wrap(err, "saving context")
-//	}
-//
-//	return nil
-//}
-
 func (c *ContextClient) RunCmdContextCreate(cmd *cobra.Command, args []string) error {
 	ctx, err := NewLoginClient(c.App).CheckTokenAndLogin(context.Background())
 	if err != nil {
@@ -89,7 +59,7 @@ func (c *ContextClient) RunCmdContextCreate(cmd *cobra.Command, args []string) e
 	}
 	oldConf := *conf
 
-	log.Info("Creating a new context...")
+	log.Info("Creating a New context...")
 
 	ctx, err = c.createCloudContext(ctx)
 	if err != nil {
@@ -122,6 +92,7 @@ func (c *ContextClient) RunCmdContextDelete(cmd *cobra.Command, args []string) e
 
 	if len(conf.Contexts) == 0 {
 		log.Info("No contexts to delete. Exiting...")
+
 		return nil
 	}
 
@@ -193,6 +164,76 @@ func (c *ContextClient) RunCmdContextSelect(cmd *cobra.Command, args []string) e
 	return nil
 }
 
+func (c *ContextClient) RunCmdContextCheck(cmd *cobra.Command, args []string) error {
+	log.Info("Checking context...")
+
+	conf, err := c.ReadConfig()
+	if err != nil {
+		return errors.Wrap(err, "reading config")
+	}
+
+	if len(conf.Contexts) == 0 {
+		log.Info("No context selected.")
+
+		return nil
+	}
+
+	ctx, err := c.prepareContext(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "preparing context")
+	}
+
+	valid := true
+	_, err = c.getOrganizationByID(ctx, c.getRcContext(ctx).Organization)
+	if err != nil {
+		valid = false
+	}
+
+	_, err = c.getTeamByID(ctx, c.getRcContext(ctx).Team)
+	if err != nil {
+		valid = false
+	}
+	_, err = c.getProjectNameByID(ctx, c.getRcContext(ctx).Project)
+	if err != nil {
+		valid = false
+	}
+	_, err = c.getEnvironmentNameByID(ctx, c.getRcContext(ctx).Environment)
+	if err != nil {
+		valid = false
+	}
+
+	if !valid {
+		log.Warn("Context is invalid.")
+		val, err := GetValueFromPrompt("Would you like to delete it? (y/n)")
+		if err != nil {
+			return errors.Wrap(err, "getting context number")
+		}
+
+		var newContexts []*config.RcContext
+		if strings.ToLower(val) == "y" || strings.ToLower(val) == "yes" {
+			for _, confCtx := range conf.Contexts {
+				if confCtx.Name != conf.CurrentContext {
+					newContexts = append(newContexts, confCtx)
+				}
+			}
+
+			conf.Contexts = newContexts
+			err = c.saveContext(conf)
+			if err != nil {
+				return errors.Wrap(err, "saving context")
+			}
+
+			log.Info("Context deleted")
+		}
+
+		return nil
+	}
+
+	log.Info("Context is valid")
+
+	return nil
+}
+
 type ListContextOptions struct {
 	Full bool
 }
@@ -204,31 +245,6 @@ func WithFull() ListContextOption {
 		o.Full = true
 	}
 }
-
-//func (c *Client) configureContexts(conf *config.Config) error {
-//	var confCtx *config.RcContext
-//	ctx, err := c.CheckTokenAndLogin(context.Background())
-//	if err != nil {
-//		return errors.Wrap(err, "checking token")
-//	}
-//
-//	orgname, err := c.getOrganizationByID(ctx, confCtx.Organization)
-//	if err != nil {
-//		return errors.Wrap(err, "getting organization by ID")
-//	}
-//	teamname, err := c.getTeamByID(ctx, confCtx.Team)
-//	if err != nil {
-//		return errors.Wrap(err, "getting team by ID")
-//	}
-//	projectname, err := c.getProjectNameByID(ctx, confCtx.Project)
-//	if err != nil {
-//		return errors.Wrap(err, "getting project by ID")
-//	}
-//	environmentname, err := c.getEnvironmentNameByID(ctx, confCtx.Environment)
-//	if err != nil {
-//		return errors.Wrap(err, "getting environment by ID")
-//	}
-//}
 
 func (c *ContextClient) listContexts(conf *config.Config, opts ...ListContextOption) error {
 	o := &ListContextOptions{}
@@ -450,7 +466,7 @@ func (c *ContextClient) selectTeam(ctx context.Context) (_ context.Context, name
 		return ctx, "", errors.Wrap(err, "parsing team id")
 	}
 
-	rcContext.Team = val
+	rcContext.Team = strconv.FormatInt(int64(teams[iVal-1].GetId()), 10)
 
 	return context.WithValue(ctx, config.ContextKey{}, rcContext),
 		teams[iVal-1].GetCodeName(),
