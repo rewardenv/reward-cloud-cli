@@ -27,37 +27,10 @@ func NewCmdEnv(app *config.App) *cmdpkg.Command {
 	}
 
 	cmd.AddCommands(
-		NewCmdEnvStatus(app),
 		NewCmdEnvBuildAndDeploy(app),
 		NewCmdEnvExportDB(app),
 		NewCmdEnvExportMedia(app),
 	)
-
-	return cmd
-}
-
-func NewCmdEnvStatus(app *config.App) *cmdpkg.Command {
-	cmd := &cmdpkg.Command{
-		Command: &cobra.Command{
-			Use:   "status",
-			Short: "environment status",
-			Long:  `environment status`,
-			ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) (
-				[]string, cobra.ShellCompDirective,
-			) {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			},
-			RunE: func(cmd *cobra.Command, args []string) error {
-				err := logic.NewEnvClient(app).RunCmdEnvStatus(cmd, args)
-				if err != nil {
-					return errors.Wrap(err, "running db port-forward command")
-				}
-
-				return nil
-			},
-		},
-		App: app,
-	}
 
 	return cmd
 }

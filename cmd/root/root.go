@@ -6,6 +6,7 @@ import (
 	"github.com/rewardenv/reward-cloud-cli/cmd/cache"
 	"github.com/rewardenv/reward-cloud-cli/cmd/context"
 	"github.com/rewardenv/reward-cloud-cli/cmd/env"
+	"github.com/rewardenv/reward-cloud-cli/cmd/info"
 	"github.com/rewardenv/reward-cloud-cli/cmd/portForward"
 	"path/filepath"
 
@@ -67,6 +68,7 @@ func NewCmdRoot(conf *config.App) *cmdpkg.Command {
 		shell.NewCmdShell(conf),
 		portForward.NewCmdPortForward(conf),
 		env.NewCmdEnv(conf),
+		info.NewCmdInfo(conf),
 	)
 
 	return cmd

@@ -55,7 +55,7 @@ func (c *LoginClient) CheckTokenAndLogin(ctx context.Context) (context.Context, 
 }
 
 func (c *LoginClient) Login(ctx context.Context) (context.Context, error) {
-	log.Printf("Logging in to %s...", c.GetString(fmt.Sprintf("%s_endpoint", c.ConfigPrefix())))
+	log.Printf("Logging in to %s...", c.Endpoint())
 
 	token, err := c.loginWithUsernameAndPassword(ctx)
 	if err != nil {
@@ -117,14 +117,24 @@ func (c *LoginClient) loginWithUsernameAndPassword(ctx context.Context) (string,
 }
 
 func (c *LoginClient) getCredentials() (string, string, error) {
-	username, err := GetValueFromPrompt("Username or email")
-	if err != nil {
-		return "", "", errors.Wrap(err, "getting username")
+	var (
+		err      error
+		username = c.ID()
+		password = c.Password()
+	)
+
+	if username == "" {
+		username, err = GetValueFromPrompt("Username or email")
+		if err != nil {
+			return "", "", errors.Wrap(err, "getting username")
+		}
 	}
 
-	password, err := GetPasswordFromPrompt("Password")
-	if err != nil {
-		return "", "", errors.Wrap(err, "getting password")
+	if password == "" {
+		password, err = GetPasswordFromPrompt("Password")
+		if err != nil {
+			return "", "", errors.Wrap(err, "getting password")
+		}
 	}
 
 	return strings.TrimSpace(username), strings.TrimSpace(password), nil

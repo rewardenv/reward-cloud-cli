@@ -148,9 +148,9 @@ func NewTableWriter(opts ...tableWriterOption) TableWriter {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.SetStyle(table.StyleLight)
-	t.Style().Options.SeparateRows = true
-	t.SetAllowedRowLength(120)
+	//t.Style().Options.SeparateRows = true
+	t.SetStyle(table.StyleDefault)
+	t.SetAllowedRowLength(180)
 
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{

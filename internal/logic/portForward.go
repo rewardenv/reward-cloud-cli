@@ -53,21 +53,6 @@ func (c *PortForwardClient) RunCmdPortForwardDB(cmd *cobra.Command, args []strin
 		return errors.Errorf("environment is not running: state = %s", state.GetName())
 	}
 
-	access, _, err := c.RewardCloud.EnvironmentAccessApi.ApiEnvironmentAccessesIdGet(ctx, GetIDFromPath(environment.GetEnvironmentAccess())).Execute()
-	if err != nil {
-		return errors.Wrap(err, "getting accesses")
-	}
-
-	database, _, err := c.RewardCloud.EnvironmentAccessDatabaseApi.ApiEnvironmentAccessDatabasesIdGet(ctx, GetIDFromPath(access.GetDatabase())).Execute()
-	if err != nil {
-		return errors.Wrap(err, "getting database")
-	}
-
-	dbPassword, err := base64.StdEncoding.DecodeString(database.GetPassword())
-	if err != nil {
-		return errors.Wrap(err, "decoding database password")
-	}
-
 	cluster, err := c.getCluster(ctx)
 	if err != nil {
 		return errors.Wrap(err, "getting cluster")
@@ -93,7 +78,22 @@ func (c *PortForwardClient) RunCmdPortForwardDB(cmd *cobra.Command, args []strin
 		return errors.New("cannot find db pod")
 	}
 
-	t := NewTableWriter()
+	access, _, err := c.RewardCloud.EnvironmentAccessApi.ApiEnvironmentAccessesIdGet(ctx, GetIDFromPath(environment.GetEnvironmentAccess())).Execute()
+	if err != nil {
+		return errors.Wrap(err, "getting accesses")
+	}
+
+	database, _, err := c.RewardCloud.EnvironmentAccessDatabaseApi.ApiEnvironmentAccessDatabasesIdGet(ctx, GetIDFromPath(access.GetDatabase())).Execute()
+	if err != nil {
+		return errors.Wrap(err, "getting database")
+	}
+
+	dbPassword, err := base64.StdEncoding.DecodeString(database.GetPassword())
+	if err != nil {
+		return errors.Wrap(err, "decoding database password")
+	}
+
+	t := NewTableWriter(WithTableWidthMax(80))
 	t.AppendHeader(table.Row{"Host", "Port", "Schema", "User", "Password"})
 	t.AppendRow(table.Row{"127.0.0.1", c.Get("local_port"), database.GetScheme(), database.GetUsername(), string(dbPassword)})
 	t.Render()

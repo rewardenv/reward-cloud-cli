@@ -76,7 +76,8 @@ func (c *Client) getClusterByID(ctx context.Context, id int32) (*rewardcloud.Clu
 }
 
 func (c *Client) getOrganizationByID(ctx context.Context, id string) (name string, err error) {
-	org, _, err := c.RewardCloud.OrganisationApi.ApiOrganisationsIdGet(ctx, id).Execute()
+	org, resp, err := c.RewardCloud.OrganisationApi.ApiOrganisationsIdGet(ctx, id).Execute()
+	_ = resp
 	if err != nil {
 		return "", errors.Wrap(err, "getting organization")
 	}
@@ -93,7 +94,7 @@ func (c *Client) getTeamByID(ctx context.Context, id string) (name string, err e
 	return team.GetName(), nil
 }
 
-func (c *Client) getProject(ctx context.Context) (*rewardcloud.ProjectProjectGet, error) {
+func (c *Client) getProject(ctx context.Context) (*rewardcloud.ProjectProjectOutput, error) {
 	ctx, err := c.prepareContext(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "preparing context")
@@ -116,7 +117,7 @@ func (c *Client) getProjectNameByID(ctx context.Context, id string) (name string
 	return project.GetName(), nil
 }
 
-func (c *Client) getProjectByID(ctx context.Context, id string) (get *rewardcloud.ProjectProjectGet, err error) {
+func (c *Client) getProjectByID(ctx context.Context, id string) (get *rewardcloud.ProjectProjectOutput, err error) {
 	project, _, err := c.RewardCloud.ProjectApi.ApiProjectsIdGet(ctx, id).Execute()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting project")
@@ -125,7 +126,7 @@ func (c *Client) getProjectByID(ctx context.Context, id string) (get *rewardclou
 	return project, nil
 }
 
-func (c *Client) getEnvironment(ctx context.Context) (*rewardcloud.EnvironmentEnvironmentGet, error) {
+func (c *Client) getEnvironment(ctx context.Context) (*rewardcloud.EnvironmentEnvironmentOutput, error) {
 	ctx, err := c.prepareContext(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "preparing context")
@@ -148,7 +149,7 @@ func (c *Client) getEnvironmentNameByID(ctx context.Context, id string) (name st
 	return environment.GetName(), nil
 }
 
-func (c *Client) getEnvironmentByID(ctx context.Context, id string) (*rewardcloud.EnvironmentEnvironmentGet, error) {
+func (c *Client) getEnvironmentByID(ctx context.Context, id string) (*rewardcloud.EnvironmentEnvironmentOutput, error) {
 	environment, _, err := c.RewardCloud.EnvironmentApi.ApiEnvironmentsIdGet(ctx, id).Execute()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting environment")
