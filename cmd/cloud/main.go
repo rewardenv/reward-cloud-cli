@@ -16,20 +16,15 @@ limitations under the License.
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 	"syscall"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/rewardenv/reward-cloud-cli/cmd/root"
 	"github.com/rewardenv/reward-cloud-cli/internal/config"
-)
-
-var (
-	APPNAME       = "cloud"
-	PARENTAPPNAME = "reward"
-	VERSION       = "v0.0.1"
 )
 
 func main() {
@@ -42,7 +37,7 @@ func main() {
 		syscall.SIGKILL,
 	)
 
-	app := config.New(APPNAME, PARENTAPPNAME, VERSION)
+	app := config.New()
 
 	cobra.OnInitialize(func() {
 		app.Init()
@@ -50,7 +45,6 @@ func main() {
 
 	go func() {
 		<-sig
-
 		if err := app.Cleanup(); err != nil {
 			os.Exit(1)
 		}

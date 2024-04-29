@@ -9,7 +9,7 @@ builds:
       - CGO_ENABLED=0
     main: ./cmd/cloud
     ldflags:
-      - -s -w -X main.VERSION={{.Tag}}-{{ time "200601021504" }}
+      - -s -w -X main.github.com/rewardenv/reward-cloud-cli/internal/globals.CLITOKEN={{ .Env.REWARD_CLOUD_CLI_TOKEN }} -X main.github.com/rewardenv/reward-cloud-cli/internal/globals.VERSION={{.Tag}}-{{ time "200601021504" }}
     goos:
       - linux
       - windows
@@ -19,16 +19,17 @@ builds:
       - amd64
       - "386"
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
-    format_overrides:
+  - format_overrides:
       - goos: windows
         format: zip
-    name_template: '{{- .ProjectName -}}_{{- .Os -}}_{{- if and (eq .Os "Linux") (eq .Arch "arm64") -}}aarch64{{- else -}}{{- .Arch -}}{{- end -}}'
+    name_template: |
+      {{- .ProjectName -}}_
+      {{- title .Os -}}_
+      {{- if and (eq .Os "linux") (eq .Arch "arm64") -}}aarch64
+      {{- else if eq .Arch "amd64" -}}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{- .Arch -}}
+      {{- end -}}
     files:
       - none*
 release:
@@ -46,13 +47,14 @@ changelog:
       - '^test:'
 nfpms:
   - package_name: reward-cloud
-    file_name_template: '{{- .ProjectName -}}_{{- .Os -}}_{{- if and (eq .Os "Linux") (eq .Arch "arm64") -}}aarch64{{- else -}}{{- .Arch -}}{{- end -}}'
-    replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
+    file_name_template: |
+      {{- .ProjectName -}}_
+      {{- title .Os -}}_
+      {{- if and (eq .Os "linux") (eq .Arch "arm64") -}}aarch64
+      {{- else if eq .Arch "amd64" -}}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{- .Arch -}}
+      {{- end -}}
     maintainer: Janos Miko <info@janosmiko.com>
     description: Reward-Cloud is a plugin for Reward to manipulate Cloud environments.
     license: MIT
@@ -67,7 +69,7 @@ nfpms:
     rpm:
       compression: lzma
 brews:
-  - tap:
+  - repository:
       owner: rewardenv
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
@@ -78,7 +80,7 @@ brews:
     folder: Formula
     description: Reward-Cloud is a plugin for Reward to manipulate Cloud environments.
     license: MIT
-    skip_upload: "true"
+    skip_upload: "false"
     dependencies:
       - name: reward-beta
         type: optional

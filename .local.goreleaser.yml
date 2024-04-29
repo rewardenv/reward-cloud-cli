@@ -1,0 +1,28 @@
+---
+project_name: reward-cloud
+before:
+  hooks:
+    - go mod download
+    - go generate ./...
+builds:
+  - env:
+      - CGO_ENABLED=0
+    main: ./cmd/cloud
+    ldflags:
+      - -s -w -X github.com/rewardenv/reward-cloud-cli/internal/globals.CLITOKEN={{ .Env.REWARD_CLOUD_CLI_TOKEN }} -X github.com/rewardenv/reward-cloud-cli/internal/globals.VERSION={{.Tag}}-{{ time "200601021504" }}
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - arm64
+      - amd64
+      - "386"
+archives:
+  - format: binary
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

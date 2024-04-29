@@ -1,13 +1,14 @@
 package logic
 
 import (
-	"context"
 	"encoding/base64"
+	"net/url"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
-	"github.com/rewardenv/reward-cloud-cli/internal/config"
 	"github.com/spf13/cobra"
-	"net/url"
+
+	"github.com/rewardenv/reward-cloud-cli/internal/config"
 )
 
 type InfoClient struct {
@@ -19,7 +20,7 @@ func NewInfoClient(c *config.App) *InfoClient {
 }
 
 func (c *InfoClient) RunCmdInfo(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	ctx, err := NewLoginClient(c.App).CheckTokenAndLogin(ctx)
 	if err != nil {
@@ -44,18 +45,18 @@ func (c *InfoClient) RunCmdInfo(cmd *cobra.Command, args []string) error {
 	accessID := environment.GetEnvironmentAccess()
 
 	if accessID != "" {
-		access, resp, err := c.RewardCloud.EnvironmentAccessApi.ApiEnvironmentAccessesIdGet(ctx, GetIDFromPath(accessID)).Execute()
+		access, resp, err := c.RewardCloud.EnvironmentAccessAPI.ApiEnvironmentAccessesIdGet(ctx, GetIDFromPath(accessID)).Execute()
 		_ = resp
 		if err != nil {
 			return errors.Wrap(err, "getting accesses")
 		}
 
-		frontend, _, err := c.RewardCloud.EnvironmentAccessFrontendApi.ApiEnvironmentAccessFrontendsIdGet(ctx, GetIDFromPath(access.GetFrontend())).Execute()
+		frontend, _, err := c.RewardCloud.EnvironmentAccessFrontendAPI.ApiEnvironmentAccessFrontendsIdGet(ctx, GetIDFromPath(access.GetFrontend())).Execute()
 		if err != nil {
 			return errors.Wrap(err, "getting frontend")
 		}
 
-		backend, _, err := c.RewardCloud.EnvironmentAccessBackendApi.ApiEnvironmentAccessBackendsIdGet(ctx, GetIDFromPath(access.GetBackend())).Execute()
+		backend, _, err := c.RewardCloud.EnvironmentAccessBackendAPI.ApiEnvironmentAccessBackendsIdGet(ctx, GetIDFromPath(access.GetBackend())).Execute()
 		if err != nil {
 			return errors.Wrap(err, "getting backend")
 		}
@@ -65,7 +66,7 @@ func (c *InfoClient) RunCmdInfo(cmd *cobra.Command, args []string) error {
 			return errors.Wrap(err, "decoding backend password")
 		}
 
-		devtools, _, err := c.RewardCloud.EnvironmentAccessDevToolsApi.ApiEnvironmentAccessDevToolsIdGet(ctx, GetIDFromPath(access.GetDevTools())).Execute()
+		devtools, _, err := c.RewardCloud.EnvironmentAccessDevToolsAPI.ApiEnvironmentAccessDevToolsIdGet(ctx, GetIDFromPath(access.GetDevTools())).Execute()
 		if err != nil {
 			return errors.Wrap(err, "getting devtools")
 		}
@@ -82,12 +83,12 @@ func (c *InfoClient) RunCmdInfo(cmd *cobra.Command, args []string) error {
 
 		devtoolsURL.User = url.UserPassword(devtools.GetUsername(), string(devtoolsPassword))
 
-		mailhog, _, err := c.RewardCloud.EnvironmentAccessMailhogApi.ApiEnvironmentAccessMailhogsIdGet(ctx, GetIDFromPath(access.GetMailhog())).Execute()
+		mailbox, _, err := c.RewardCloud.EnvironmentAccessMailboxAPI.ApiEnvironmentAccessMailboxesIdGet(ctx, GetIDFromPath(access.GetMailbox())).Execute()
 		if err != nil {
 			return errors.Wrap(err, "getting mailhog")
 		}
 
-		phpmyadmin, _, err := c.RewardCloud.EnvironmentAccessDatabaseApi.ApiEnvironmentAccessDatabasesIdGet(ctx, GetIDFromPath(access.GetDatabase())).Execute()
+		phpmyadmin, _, err := c.RewardCloud.EnvironmentAccessDatabaseAPI.ApiEnvironmentAccessDatabasesIdGet(ctx, GetIDFromPath(access.GetDatabase())).Execute()
 		if err != nil {
 			return errors.Wrap(err, "getting database")
 		}
@@ -118,7 +119,7 @@ func (c *InfoClient) RunCmdInfo(cmd *cobra.Command, args []string) error {
 		t.AppendRow(table.Row{"PHPMyAdmin URL", phpmyadminURL.String()})
 		t.AppendRow(table.Row{"PHPMyAdmin Username", phpmyadmin.GetUsername()})
 		t.AppendRow(table.Row{"PHPMyAdmin Password", string(phpmyadminPassword)})
-		t.AppendRow(table.Row{"Mailhog URL", mailhog.GetUrl()})
+		t.AppendRow(table.Row{"Mailbox URL", mailbox.GetUrl()})
 	}
 
 	t.Render()

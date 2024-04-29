@@ -3,16 +3,18 @@ package logic
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
-	"github.com/rewardenv/reward-cloud-cli/internal/config"
 	"github.com/rewardenv/reward/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"reflect"
-	"strconv"
-	"strings"
+
+	"github.com/rewardenv/reward-cloud-cli/internal/config"
 )
 
 type ContextClient struct {
@@ -387,7 +389,7 @@ func (c *ContextClient) saveContext(conf *config.Config) error {
 func (c *ContextClient) selectOrganization(ctx context.Context) (_ context.Context, name string, err error) {
 	rcContext := c.getRcContext(ctx)
 
-	orgs, _, err := c.RewardCloud.OrganisationApi.ApiOrganisationsGetCollection(ctx).Execute()
+	orgs, _, err := c.RewardCloud.OrganisationAPI.ApiOrganisationsGetCollection(ctx).Execute()
 	if err != nil {
 		return ctx, "", errors.Wrap(err, "getting organizations")
 	}
@@ -433,9 +435,10 @@ func (c *ContextClient) selectTeam(ctx context.Context) (_ context.Context, name
 		return ctx, "", errors.Wrap(err, "checking organization")
 	}
 
-	teams, _, err := c.RewardCloud.TeamApi.ApiTeamsGetCollection(ctx).
+	teams, resp, err := c.RewardCloud.TeamAPI.ApiTeamsGetCollection(ctx).
 		Organisation(rcContext.Organization).
 		Execute()
+	_ = resp
 	if err != nil {
 		return ctx, "", errors.Wrap(err, "getting teams")
 	}
@@ -483,10 +486,11 @@ func (c *ContextClient) selectProject(ctx context.Context) (_ context.Context, n
 		return ctx, "", errors.Wrap(err, "checking team")
 	}
 
-	projects, _, err := c.RewardCloud.ProjectApi.ApiProjectsGetCollection(ctx).
+	projects, resp, err := c.RewardCloud.ProjectAPI.ApiProjectsGetCollection(ctx).
 		TeamOrganisationId(rcContext.OrganizationID()).
 		Team(rcContext.Team).
 		Execute()
+	_ = resp
 	if err != nil {
 		return ctx, "", errors.Wrap(err, "getting projects")
 	}
@@ -540,7 +544,7 @@ func (c *ContextClient) selectEnvironment(ctx context.Context) (_ context.Contex
 		return ctx, "", errors.Wrap(err, "checking project")
 	}
 
-	environments, _, err := c.RewardCloud.EnvironmentApi.ApiEnvironmentsGetCollection(ctx).
+	environments, _, err := c.RewardCloud.EnvironmentAPI.ApiEnvironmentsGetCollection(ctx).
 		Project(rcContext.Project).
 		ProjectTeamId(rcContext.TeamID()).
 		Execute()

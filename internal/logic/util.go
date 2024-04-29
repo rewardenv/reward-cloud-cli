@@ -3,14 +3,15 @@ package logic
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/david_mbuvi/go_asterisks"
-	"os"
-	"strconv"
-	"strings"
 )
 
 type options struct {
@@ -148,7 +149,7 @@ func NewTableWriter(opts ...tableWriterOption) TableWriter {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	//t.Style().Options.SeparateRows = true
+	// t.Style().Options.SeparateRows = true
 	t.SetStyle(table.StyleDefault)
 	t.SetAllowedRowLength(180)
 
@@ -195,4 +196,15 @@ func (t TableWriter) Render() {
 func GetIDFromPath(path string) string {
 	pathParts := strings.Split(path, "/")
 	return pathParts[len(pathParts)-1]
+}
+
+func ContainsAny[K comparable](s []K, search ...K) bool {
+	for _, i := range s {
+		for _, v := range search {
+			if v == i {
+				return true
+			}
+		}
+	}
+	return false
 }

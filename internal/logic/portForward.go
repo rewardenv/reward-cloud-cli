@@ -1,15 +1,16 @@
 package logic
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
+	"path/filepath"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/rewardenv/reward-cloud-cli/internal/config"
 	"github.com/rewardenv/reward-cloud-cli/internal/shell"
-	"github.com/spf13/cobra"
-	"path/filepath"
 )
 
 type PortForwardClient struct {
@@ -21,7 +22,7 @@ func NewPortForwardClient(c *config.App) *PortForwardClient {
 }
 
 func (c *PortForwardClient) RunCmdPortForwardDB(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	ctx, err := NewLoginClient(c.App).CheckTokenAndLogin(ctx)
 	if err != nil {
@@ -33,12 +34,12 @@ func (c *PortForwardClient) RunCmdPortForwardDB(cmd *cobra.Command, args []strin
 		return errors.Wrap(err, "getting project")
 	}
 
-	projectTypeVersion, _, err := c.RewardCloud.ProjectTypeVersionApi.ApiProjectTypeVersionsIdGet(ctx, GetIDFromPath(project.GetProjectTypeVersion())).Execute()
+	projectTypeVersion, _, err := c.RewardCloud.ProjectTypeVersionAPI.ApiProjectTypeVersionsIdGet(ctx, GetIDFromPath(project.GetProjectTypeVersion())).Execute()
 	if err != nil {
 		return errors.Wrap(err, "getting project type version")
 	}
 
-	_, _, err = c.RewardCloud.ProjectTypeApi.ApiProjectTypesIdGet(ctx, GetIDFromPath(projectTypeVersion.GetProjectType())).Execute()
+	_, _, err = c.RewardCloud.ProjectTypeAPI.ApiProjectTypesIdGet(ctx, GetIDFromPath(projectTypeVersion.GetProjectType())).Execute()
 	if err != nil {
 		return errors.Wrap(err, "getting project type")
 	}
@@ -48,7 +49,7 @@ func (c *PortForwardClient) RunCmdPortForwardDB(cmd *cobra.Command, args []strin
 		return errors.Wrap(err, "getting environment")
 	}
 
-	state, _, err := c.RewardCloud.StateApi.ApiStatesIdGet(ctx, GetIDFromPath(environment.GetState())).Execute()
+	state, _, err := c.RewardCloud.StateAPI.ApiStatesIdGet(ctx, GetIDFromPath(environment.GetState())).Execute()
 	if state.GetName() != "Running" {
 		return errors.Errorf("environment is not running: state = %s", state.GetName())
 	}
@@ -78,12 +79,12 @@ func (c *PortForwardClient) RunCmdPortForwardDB(cmd *cobra.Command, args []strin
 		return errors.New("cannot find db pod")
 	}
 
-	access, _, err := c.RewardCloud.EnvironmentAccessApi.ApiEnvironmentAccessesIdGet(ctx, GetIDFromPath(environment.GetEnvironmentAccess())).Execute()
+	access, _, err := c.RewardCloud.EnvironmentAccessAPI.ApiEnvironmentAccessesIdGet(ctx, GetIDFromPath(environment.GetEnvironmentAccess())).Execute()
 	if err != nil {
 		return errors.Wrap(err, "getting accesses")
 	}
 
-	database, _, err := c.RewardCloud.EnvironmentAccessDatabaseApi.ApiEnvironmentAccessDatabasesIdGet(ctx, GetIDFromPath(access.GetDatabase())).Execute()
+	database, _, err := c.RewardCloud.EnvironmentAccessDatabaseAPI.ApiEnvironmentAccessDatabasesIdGet(ctx, GetIDFromPath(access.GetDatabase())).Execute()
 	if err != nil {
 		return errors.Wrap(err, "getting database")
 	}

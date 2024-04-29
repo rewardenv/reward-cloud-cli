@@ -4,9 +4,8 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/rewardenv/reward/pkg/util"
-	"gopkg.in/yaml.v3"
+	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,10 +13,17 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-version"
-	"github.com/rewardenv/reward-cloud-sdk-go/rewardcloud"
+	"github.com/pkg/errors"
+	"github.com/rewardenv/reward/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
+
+	"github.com/rewardenv/reward-cloud-cli/internal/globals"
+	"github.com/rewardenv/reward-cloud-cli/internal/shell"
+	"github.com/rewardenv/reward-cloud-cli/internal/templates"
+	"github.com/rewardenv/reward-cloud-cli/pkg/api/rewardcloud"
 )
 
 // FS is the implementation of Afero Filesystem. It's a filesystem wrapper and used for testing.
@@ -29,18 +35,20 @@ type App struct {
 	parentAppName string
 	token         string
 	TmpFiles      *list.List
+	Templates     *templates.Client
 	RewardCloud   *rewardcloud.APIClient
+	Shell         shell.Shell
 }
 
-func New(name, parentAppName, ver string) *App {
+func New() *App {
 	a := &App{
 		Viper:         viper.GetViper(),
-		appName:       name,
-		parentAppName: parentAppName,
+		appName:       globals.APPNAME,
+		parentAppName: globals.PARENTAPPNAME,
 		TmpFiles:      list.New(),
 	}
 
-	a.SetDefault(fmt.Sprintf("%s_%s_version", parentAppName, name), version.Must(version.NewVersion(ver)).String())
+	a.SetDefault(fmt.Sprintf("%s_%s_version", globals.PARENTAPPNAME, globals.APPNAME), version.Must(version.NewVersion(globals.VERSION)).String())
 
 	return a
 }
@@ -48,9 +56,11 @@ func New(name, parentAppName, ver string) *App {
 func (a *App) Cleanup() error {
 	var err error
 	for e := a.TmpFiles.Front(); e != nil; e = e.Next() {
-		err2 := os.Remove(e.Value.(string))
-		if err2 != nil {
-			err = err2
+		if val, ok := e.Value.(string); ok {
+			err2 := os.Remove(val)
+			if err2 != nil {
+				err = err2
+			}
 		}
 	}
 
@@ -88,8 +98,11 @@ func (a *App) Init() *App {
 	a.SetDefault(fmt.Sprintf("%s_config_file", a.ConfigPrefix()),
 		filepath.Join(a.AppHomeDir(), "config.yml"))
 
-	// Cloud API App
-	a.SetDefault(fmt.Sprintf("%s_endpoint", a.ConfigPrefix()), "rewardcloud.itg.cloud")
+	// Cloud API Endpoint
+	a.SetDefault(fmt.Sprintf("%s_endpoint", a.ConfigPrefix()), "console.reward.sh")
+
+	// Cloud API Cli Token
+	a.SetDefault(fmt.Sprintf("%s_cli_token", a.ConfigPrefix()), globals.CLITOKEN)
 
 	a.AddConfigPath(".")
 
@@ -124,13 +137,19 @@ func (a *App) Init() *App {
 	}
 	conf := &rewardcloud.Configuration{
 		UserAgent: "reward-cloud-cli",
-		Debug:     false,
-		Servers:   endpoint,
+		DefaultHeader: map[string]string{
+			"cli-token": a.CliTokenHeader(),
+		},
+		Debug:   false,
+		Servers: endpoint,
 		OperationServers: map[string]rewardcloud.ServerConfigurations{
 			"default": endpoint,
 		},
 	}
 	a.RewardCloud = rewardcloud.NewAPIClient(conf)
+
+	a.Templates = templates.New()
+	a.Shell = shell.NewLocalShellWithOpts()
 
 	return a
 }
@@ -277,4 +296,21 @@ func (a *App) ReadConfig() (*Config, error) {
 	}
 
 	return conf, nil
+}
+
+func (a *App) CliTokenHeader() string {
+	return a.GetString(fmt.Sprintf("%s_cli_token", a.ConfigPrefix()))
+}
+
+func (a *App) CheckStatus(res *http.Response) ([]byte, error) {
+	out, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read message body")
+	}
+
+	if res.StatusCode < 200 || res.StatusCode > 399 {
+		return nil, errors.Errorf("http error: status code: %d, body: %s", res.StatusCode, string(out))
+	}
+
+	return out, nil
 }

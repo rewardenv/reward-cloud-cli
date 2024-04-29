@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/rewardenv/reward-cloud-cli/internal/config"
-	"github.com/rewardenv/reward-cloud-sdk-go/rewardcloud"
-	"github.com/rewardenv/reward/pkg/util"
-	log "github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/rewardenv/reward/pkg/util"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/rewardenv/reward-cloud-cli/internal/config"
+	"github.com/rewardenv/reward-cloud-cli/pkg/api/rewardcloud"
 )
 
 type LoginClient struct {
@@ -24,7 +26,7 @@ func NewLoginClient(c *config.App) *LoginClient {
 }
 
 func (c *LoginClient) RunCmdLogin(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	_, err := c.CheckTokenAndLogin(ctx)
 	if err != nil {
@@ -100,13 +102,13 @@ func (c *LoginClient) loginWithUsernameAndPassword(ctx context.Context) (string,
 		}
 	}
 
-	creds := rewardcloud.Credentials{
+	creds := rewardcloud.AuthenticationCredentials{
 		Id:       rewardcloud.PtrString(id),
 		Password: rewardcloud.PtrString(password),
 	}
 
 	ctx = context.Background()
-	token, _, err := c.RewardCloud.TokenApi.PostCredentialsItem(ctx).Credentials(creds).Execute()
+	token, _, err := c.RewardCloud.MiscellaneousAPI.PostCredentialsItem(ctx).AuthenticationCredentials(creds).Execute()
 	if err != nil {
 		return "", errors.Wrap(err, "getting token")
 	}
@@ -165,16 +167,10 @@ func (c *LoginClient) readToken() []byte {
 }
 
 func (c *LoginClient) ValidateToken(ctx context.Context) (bool, error) {
-	projects, _, err := c.RewardCloud.ProjectApi.ApiProjectsGetCollection(ctx).Execute()
-	if err != nil {
-		if err.Error() == ErrUnauthorized.Error() {
-			return false, nil
-		}
-
-		return false, errors.Wrap(err, "checking token")
+	_, resp, _ := c.RewardCloud.ProjectAPI.ApiProjectsGetCollection(ctx).Execute()
+	if resp.StatusCode == http.StatusOK {
+		return true, nil
 	}
 
-	_ = projects
-
-	return true, nil
+	return false, nil
 }

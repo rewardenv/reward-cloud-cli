@@ -1,14 +1,16 @@
 package logic
 
 import (
-	"context"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/rewardenv/reward-cloud-cli/internal/config"
-	"github.com/rewardenv/reward-cloud-cli/internal/shell"
-	"github.com/spf13/cobra"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
+	"github.com/rewardenv/reward-cloud-cli/internal/config"
+	"github.com/rewardenv/reward-cloud-cli/internal/shell"
 )
 
 type ShellClient struct {
@@ -20,11 +22,16 @@ func NewShellClient(c *config.App) *ShellClient {
 }
 
 func (c *ShellClient) RunCmdShell(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	ctx, err := NewLoginClient(c.App).CheckTokenAndLogin(ctx)
 	if err != nil {
 		return errors.Wrap(err, "logging in")
+	}
+
+	err = NewPrerequisitesClient(c.App).Check()
+	if err != nil {
+		return errors.Wrap(err, "checking prerequisites")
 	}
 
 	project, err := c.getProject(ctx)
@@ -32,12 +39,12 @@ func (c *ShellClient) RunCmdShell(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "getting project")
 	}
 
-	projectTypeVersion, _, err := c.RewardCloud.ProjectTypeVersionApi.ApiProjectTypeVersionsIdGet(ctx, GetIDFromPath(project.GetProjectTypeVersion())).Execute()
+	projectTypeVersion, _, err := c.RewardCloud.ProjectTypeVersionAPI.ApiProjectTypeVersionsIdGet(ctx, GetIDFromPath(project.GetProjectTypeVersion())).Execute()
 	if err != nil {
 		return errors.Wrap(err, "getting project type version")
 	}
 
-	projectType, _, err := c.RewardCloud.ProjectTypeApi.ApiProjectTypesIdGet(ctx, GetIDFromPath(projectTypeVersion.GetProjectType())).Execute()
+	projectType, _, err := c.RewardCloud.ProjectTypeAPI.ApiProjectTypesIdGet(ctx, GetIDFromPath(projectTypeVersion.GetProjectType())).Execute()
 	if err != nil {
 		return errors.Wrap(err, "getting project type")
 	}
@@ -63,10 +70,14 @@ func (c *ShellClient) RunCmdShell(cmd *cobra.Command, args []string) error {
 		"get",
 		"pod",
 		"-n", fmt.Sprintf("%s-%s", project.GetCodeName(), environment.GetCodeName()),
-		"--selector", "reward.itg.cloud/component=main",
+		"--selector", "reward.itg.cloud/component=application",
 		"-o", "jsonpath={.items[0].metadata.name}",
 	},
 		shell.WithSuppressOutput(true), shell.WithCatchOutput(true))
+	if err != nil {
+		log.Debugf("Error getting shell pod: %s", err.Error())
+		return errors.New("cannot find shell pod")
+	}
 
 	if string(podname) == "" {
 		return errors.New("cannot find shell pod")

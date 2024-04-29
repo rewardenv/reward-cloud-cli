@@ -1,0 +1,9 @@
+disallowAdditionalPropertiesIfNotPresent: true
+packageName: rewardcloud
+useOneOfDiscriminatorLookup: true
+isGoSubmodule: false
+enumClassPrefix: true
+structPrefix: true
+validateSpec: true
+generateInterfaces: false
+prependFormOrBodyParameters: true

@@ -107,6 +107,9 @@ func (c *LocalShell) Execute(name string, arg ...string) ([]byte, error) {
 	case c.CatchOutput():
 		cmd.Stdout = io.MultiWriter(os.Stdout, &combinedOutBuf)
 		cmd.Stderr = io.MultiWriter(os.Stderr, &combinedOutBuf)
+	case c.SuppressOutput():
+		cmd.Stdout = io.Discard
+		cmd.Stderr = os.Stderr
 	default:
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

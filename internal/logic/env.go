@@ -1,19 +1,26 @@
 package logic
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/pkg/errors"
-	"github.com/rewardenv/reward-cloud-cli/internal/config"
-	"github.com/rewardenv/reward-cloud-cli/internal/ui"
-	"github.com/rewardenv/reward-cloud-sdk-go/rewardcloud"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
+	"github.com/rewardenv/reward-cloud-cli/internal/config"
+	"github.com/rewardenv/reward-cloud-cli/internal/ui"
+	"github.com/rewardenv/reward-cloud-cli/pkg/api/rewardcloud"
 )
 
 type EnvClient struct {
@@ -39,11 +46,12 @@ func (c *EnvClient) RunCmdEnvBuildAndDeploy(cmd *cobra.Command, args []string) e
 		Id: env.Id,
 	}
 
-	// TODO: Check error when Lang fixes the build and deploy endpoint
-	_, _, _ = c.RewardCloud.EnvironmentApi.ApiEnvironmentsIdbuildAndDeployPatch(ctx, c.getRcContext(ctx).Environment).EnvironmentEnvironmentOutput(patch).Execute()
-	//if err != nil {
-	//	return errors.Wrap(err, "building environment")
-	//}
+	bdp, resp, err := c.RewardCloud.EnvironmentAPI.ApiEnvironmentsIdBuildAndDeployPatch(ctx, c.getRcContext(ctx).EnvironmentID()).EnvironmentEnvironmentOutput(patch).Execute()
+	if err != nil {
+		_ = bdp
+		_ = resp
+		return errors.Wrap(err, "building environment")
+	}
 
 	p := tea.NewProgram(ui.NewModel("Building environment..."))
 
@@ -51,7 +59,7 @@ func (c *EnvClient) RunCmdEnvBuildAndDeploy(cmd *cobra.Command, args []string) e
 		// Initial delay
 		initialized := false
 		for {
-			pause := time.Duration(3000) * time.Millisecond
+			pause := 3 * time.Second
 			time.Sleep(pause)
 
 			ctx, err := NewLoginClient(c.App).CheckTokenAndLogin(ctx)
@@ -102,11 +110,11 @@ func (c *EnvClient) RunCmdEnvExportDB(cmd *cobra.Command, args []string) error {
 	}
 
 	stripDatabase := rewardcloud.NewNullableBool(rewardcloud.PtrBool(c.GetBool("strip_database")))
-	post := rewardcloud.EnvironmentEnvironmentInput{
+	post := rewardcloud.EnvironmentEnvironmentOutput{
 		IsStripDatabase: *stripDatabase,
 	}
 
-	_, _, err = c.RewardCloud.EnvironmentApi.ApiEnvironmentsIdexportDatabasePut(ctx, c.getRcContext(ctx).Environment).EnvironmentEnvironmentInput(post).Execute()
+	_, _, err = c.RewardCloud.EnvironmentAPI.ApiEnvironmentsIdExportDatabasePut(ctx, c.getRcContext(ctx).EnvironmentID()).EnvironmentEnvironmentOutput(post).Execute()
 	if err != nil {
 		return errors.Wrap(err, "exporting database")
 	}
@@ -146,7 +154,7 @@ func (c *EnvClient) RunCmdEnvExportDB(cmd *cobra.Command, args []string) error {
 					return errors.Wrap(err, "getting data type id")
 				}
 
-				res, _, err := c.RewardCloud.ExportedDataApi.ApiExportedDatasGetCollection(ctx).
+				res, _, err := c.RewardCloud.ExportedDataAPI.ApiExportedDatasGetCollection(ctx).
 					Environment(c.getRcContext(ctx).Environment).
 					DataTransferDataType(datatypeID).
 					OrderCreatedAt("desc").
@@ -188,9 +196,9 @@ func (c *EnvClient) RunCmdEnvExportMedia(cmd *cobra.Command, args []string) erro
 		return errors.Wrap(err, "preparing context")
 	}
 
-	post := rewardcloud.EnvironmentEnvironmentInput{}
+	post := rewardcloud.EnvironmentEnvironmentOutput{}
 
-	_, _, err = c.RewardCloud.EnvironmentApi.ApiEnvironmentsIdexportMediaPut(ctx, c.getRcContext(ctx).Environment).EnvironmentEnvironmentInput(post).Execute()
+	_, _, err = c.RewardCloud.EnvironmentAPI.ApiEnvironmentsIdExportMediaPut(ctx, c.getRcContext(ctx).EnvironmentID()).EnvironmentEnvironmentOutput(post).Execute()
 	if err != nil {
 		return errors.Wrap(err, "exporting media")
 	}
@@ -230,7 +238,7 @@ func (c *EnvClient) RunCmdEnvExportMedia(cmd *cobra.Command, args []string) erro
 					return errors.Wrap(err, "getting data type id")
 				}
 
-				res, _, err := c.RewardCloud.ExportedDataApi.ApiExportedDatasGetCollection(ctx).
+				res, _, err := c.RewardCloud.ExportedDataAPI.ApiExportedDatasGetCollection(ctx).
 					Environment(c.getRcContext(ctx).Environment).
 					DataTransferDataType(datatypeID).
 					OrderCreatedAt("desc").
@@ -265,7 +273,7 @@ func (c *EnvClient) RunCmdEnvExportMedia(cmd *cobra.Command, args []string) erro
 }
 
 func (c *EnvClient) GetDatatransferDataTypeID(ctx context.Context, s string) (string, error) {
-	dts, _, err := c.RewardCloud.DataTransferDataTypeApi.ApiDataTransferDataTypesGetCollection(ctx).Execute()
+	dts, _, err := c.RewardCloud.DataTransferDataTypeAPI.ApiDataTransferDataTypesGetCollection(ctx).Execute()
 	if err != nil {
 		return "", errors.Wrap(err, "getting data transfer data types")
 	}
@@ -278,4 +286,80 @@ func (c *EnvClient) GetDatatransferDataTypeID(ctx context.Context, s string) (st
 	}
 
 	return id, nil
+}
+
+func (c *EnvClient) RunCmdLogs(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	ctx, err := NewLoginClient(c.App).CheckTokenAndLogin(ctx)
+	if err != nil {
+		return errors.Wrap(err, "logging in")
+	}
+
+	environment, err := c.getEnvironment(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting environment")
+	}
+
+	f := c.GetStringSlice("filter")
+	filter := struct {
+		Filters []string `json:"filters"`
+	}{}
+	for _, f := range f {
+		filter.Filters = append(filter.Filters, fmt.Sprintf("component=%s", f))
+	}
+
+	jsonFilters, err := json.Marshal(filter)
+	if err != nil {
+		return errors.Wrap(err, "marshaling filters")
+	}
+
+	logstream, resp, err := c.RewardCloud.EnvironmentAPI.ApiEnvironmentsIdLogsGet(ctx, environment.GetId()).
+		// XFilters(`{"filters":["component=application"]}`).
+		XFilters(string(jsonFilters)).
+		XOffset(int32(c.GetDuration("offset").Seconds())).
+		Execute()
+	if err != nil {
+		_ = resp
+		return errors.Wrap(err, "getting log stream")
+	}
+
+	topic := url.QueryEscape(logstream.GetTopic())
+
+	r, err := http.NewRequestWithContext(ctx, "GET", c.Endpoint()+"/.well-known/mercure?topic="+topic, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to create request")
+	}
+
+	r.Header.Set("Authorization", "Bearer "+logstream.GetToken())
+
+	client := &http.Client{}
+	res, err := client.Do(r)
+	if err != nil {
+		return errors.Wrap(err, "failed to send request")
+	}
+	defer func() { _ = res.Body.Close() }()
+
+	log.Info("Receiving logs from stream, press Ctrl+C to exit...")
+
+	scanner := bufio.NewScanner(res.Body)
+	for {
+		if !scanner.Scan() {
+			break
+		}
+
+		data := strings.TrimLeft(scanner.Text(), `data: `)
+		foo := struct {
+			Data string `json:"data"`
+		}{}
+		_ = json.Unmarshal([]byte(data), &foo)
+		if foo.Data != "" {
+			decoded, _ := base64.StdEncoding.DecodeString(foo.Data)
+			if decoded != nil {
+				fmt.Printf("%s\n", decoded)
+			}
+		}
+	}
+
+	return nil
 }
